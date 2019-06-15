@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 0.11.8"
+  required_version = "= 0.11.14"
 }
 
 provider "aws" {
@@ -8,13 +8,13 @@ provider "aws" {
 }
 
 provider "random" {
-  version = "= 1.3.1"
+  version = "~> 2.1"
 }
 
 data "aws_availability_zones" "available" {}
 
 locals {
-  cluster_name = "test-eks-${random_string.suffix.result}"
+  cluster_name = "tmca-${random_string.suffix.result}"
 
   # the commented out worker group list below shows an example of how to define
   # multiple worker groups of differing configurations
@@ -82,7 +82,7 @@ locals {
     },
   ]
   tags = {
-    Environment = "test"
+    Environment = "dev"
     GithubRepo  = "terraform-aws-eks"
     GithubOrg   = "terraform-aws-modules"
     Workspace   = "${terraform.workspace}"
@@ -144,19 +144,20 @@ resource "aws_security_group" "all_worker_mgmt" {
 
 module "vpc" {
   source             = "terraform-aws-modules/vpc/aws"
-  version            = "1.60.0"
-  name               = "test-vpc"
+  version            = "1.66.0"
+  name               = "dev-vpc"
   cidr               = "10.0.0.0/16"
   azs                = ["${data.aws_availability_zones.available.names[0]}", "${data.aws_availability_zones.available.names[1]}", "${data.aws_availability_zones.available.names[2]}"]
   private_subnets    = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
-  public_subnets     = ["10.0.4.0/24", "10.0.5.0/24", "10.0.6.0/24"]
+  public_subnets     = ["10.0.4.0/24"]
   enable_nat_gateway = true
   single_nat_gateway = true
   tags               = "${merge(local.tags, map("kubernetes.io/cluster/${local.cluster_name}", "shared"))}"
 }
 
 module "eks" {
-  source                               = "../.."
+  source  = "terraform-aws-modules/eks/aws"
+  version = "4.0.2"
   cluster_name                         = "${local.cluster_name}"
   subnets                              = ["${module.vpc.private_subnets}"]
   tags                                 = "${local.tags}"
